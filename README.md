@@ -64,3 +64,4 @@ Note that after changing `package.json` you'll need to run `npm i`.
 Made with 🍺 by [@fenomas](https://fenomas.com), license is ISC.
 
 
+# minecraft-noa
