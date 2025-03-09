@@ -23,18 +23,18 @@ var _id = 1
 
 
 // image url imports
-import atlasURL from '../textures/terrain_atlas.png'
-import stoneURL from '../textures/stone.png'
-import transparentAtlas from '../textures/trans_atlas.png'
-import grassDecoURL from '../textures/grass_deco.png'
+import atlasURL from './textures/terrain_atlas.png'
+import stoneURL from './textures/stone.png'
+import transparentAtlas from './textures/trans_atlas.png'
+import grassDecoURL from './textures/grass_deco.png'
 
-import transparent1 from '../textures/t1.png'
-import transparent2 from '../textures/t2.png'
-import windowURL from '../textures/window.png'
+import transparent1 from './textures/t1.png'
+import transparent2 from './textures/t2.png'
+import windowURL from './textures/window.png'
 
-import imagea from '../textures/a.png'
-import imageb from '../textures/b.png'
-import imagec from '../textures/c.png'
+import imagea from './textures/a.png'
+import imageb from './textures/b.png'
+import imagec from './textures/c.png'
 
 
 /**
