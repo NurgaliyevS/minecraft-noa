@@ -1,6 +1,5 @@
-
 import { noa } from './engine'
-import { shootBouncyBall } from './entities'
+import { inventory } from './inventory'
 
 
 /*
@@ -20,18 +19,31 @@ noa.inputs.down.on('fire', function () {
 
 
 // place block on alt-fire (RMB/E)
-var pickedID = 1
+// Use the selected block from inventory instead of pickedID
 noa.inputs.down.on('alt-fire', function () {
     if (noa.targetedBlock) {
         var pos = noa.targetedBlock.adjacent
-        noa.addBlock(pickedID, pos[0], pos[1], pos[2])
+        var blockID = inventory.getSelectedBlock()
+        noa.addBlock(blockID, pos[0], pos[1], pos[2])
     }
 })
 
 
 // pick block on middle fire (MMB/Q)
 noa.inputs.down.on('mid-fire', function () {
-    if (noa.targetedBlock) pickedID = noa.targetedBlock.blockID
+    if (noa.targetedBlock) {
+        // Find the block in inventory
+        const blockID = noa.targetedBlock.blockID
+        const slotIndex = inventory.slots.findIndex(slot => slot.id === blockID)
+        
+        // If found, select that slot
+        if (slotIndex >= 0) {
+            inventory.selectSlot(slotIndex)
+        } else {
+            // If not in inventory, could add it here
+            console.log('Block not in inventory:', blockID)
+        }
+    }
 })
 
 
@@ -52,34 +64,8 @@ noa.inputs.down.on('invert-mouse', function () {
 })
 
 
-
-// shoot a bouncy ball (1)
-noa.inputs.bind('shoot', 'Digit1')
-var shoot = () => shootBouncyBall(noa)
-var interval, timeout
-noa.inputs.down.on('shoot', function () {
-    shoot()
-    timeout = setTimeout(() => {
-        interval = setInterval(shoot, 50)
-    }, 400)
-})
-noa.inputs.up.on('shoot', function () {
-    clearTimeout(timeout)
-    clearInterval(interval)
-})
-
-
-
-// testing timeScale
-var speed = 0
-noa.inputs.bind('slow', 'Digit3')
-noa.inputs.down.on('slow', () => {
-    noa.timeScale = [1, 0.1, 2][(++speed) % 3]
-})
-
-
-
 // each tick, consume any scroll events and use them to zoom camera
+// Restored original behavior without shift key requirement
 noa.on('tick', function (dt) {
     var scroll = noa.inputs.pointerState.scrolly
     if (scroll !== 0) {

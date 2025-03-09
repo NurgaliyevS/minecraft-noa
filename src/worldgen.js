@@ -1,55 +1,34 @@
-
 import { noa } from './engine'
 import { blockIDs } from './registration'
 import { encode, decode } from 'voxel-crunch'
 
-
-
 /*
  * 
- * 
- *		testbed world generation
- * 
+ * New and improved world generation
+ * Features multiple biomes, varied terrain, and natural structures
  * 
 */
 
-
-// this module implements two "worlds" of voxel data
-var WORLD1 = 'world1'
-var WORLD2 = 'world2'
+// this module implements a single world type with multiple biomes
+var WORLD_NAME = 'enhanced_world'
 
 // storage for data from voxels that were unloaded
-
 var storage = {}
 var chunkIsStored = (id) => { return !!storage[id] }
 var storeChunk = (id, arr) => { storage[id] = encode(arr.data) }
 var retrieveChunk = (id, arr) => { decode(storage[id], arr.data) }
 
-
-
-
-// init world name and add binding to swap it    
-noa.worldName = WORLD1
-noa.inputs.bind('swap-world', 'KeyO')
-noa.inputs.down.on('swap-world', function () {
-    noa.worldName = (noa.worldName === WORLD1) ? WORLD2 : WORLD1
-})
-
+// set world name
+noa.worldName = WORLD_NAME
 
 // catch engine's chunk removal event, and store the data
 noa.world.on('chunkBeingRemoved', function (id, array, userData) {
     storeChunk(id, array)
 })
 
-
 /**
- * 
- *    Here is the core worldgen handler - it catches `worldDataNeeded` 
- *    events and pushes them to a queue, and then in a setInterval 
- *    handles each request and calls `world.setChunkData`.
- * 
+ * World generation queue handler
  */
-
 var requestQueue = []
 noa.world.on('worldDataNeeded', function (id, array, x, y, z, worldName) {
     requestQueue.push({ id, array, x, y, z, worldName })
@@ -68,164 +47,394 @@ setInterval(function () {
                 return noa.world.setChunkData(req.id, req.array, null, fillVoxel)
             }
             // real worldgen:
-            generateChunk(req.array, req.x, req.y, req.z, req.worldName)
+            generateChunk(req.array, req.x, req.y, req.z)
         }
         // pass the finished data back to the game engine
         noa.world.setChunkData(req.id, req.array)
     }
 }, 10)
 
-
-
-
-
 /**
- * 
- *      World gen logic - two versions, to test world data swapping.
- * 
+ * Noise functions for terrain generation
  */
-
-// `data` is an ndarray - see https://github.com/scijs/ndarray
-function generateChunk(array, x, y, z, worldName) {
-    if (worldName === WORLD1) generateChunk1(array, x, y, z)
-    if (worldName === WORLD2) generateChunk2(array, x, y, z)
+function noise2D(x, z, scale, magnitude) {
+    return magnitude * Math.sin(x / scale) * Math.cos(z / scale)
 }
 
-function generateChunk1(array, cx, cy, cz) {
-    var size = array.shape[0]
-    if (cy === 0) {
-        for (var q = 0; q < size; ++q) array.set(q, 20, 2, 3)
+function noise3D(x, y, z, scale, magnitude) {
+    return magnitude * Math.sin(x / scale) * Math.cos(z / scale) * Math.sin(y / scale)
+}
+
+function ridgedNoise(x, z, scale, magnitude) {
+    return magnitude * Math.abs(Math.sin(x / scale) * Math.cos(z / scale))
+}
+
+function combinedNoise(x, z) {
+    // Combine multiple noise functions for more natural terrain
+    let n1 = noise2D(x, z, 100, 15)
+    let n2 = noise2D(x, z, 50, 7)
+    let n3 = noise2D(x, z, 25, 3)
+    let n4 = ridgedNoise(x, z, 200, 10)
+    
+    return n1 + n2 + n3 + n4
+}
+
+/**
+ * Biome system
+ */
+const BIOMES = {
+    FOREST: 'forest',
+    PLAINS: 'plains',
+    MOUNTAINS: 'mountains',
+    DESERT: 'desert',
+    LAKE: 'lake'
+}
+
+function getBiome(x, z) {
+    // Use noise to determine biome
+    let biomeNoise = noise2D(x, z, 300, 1)
+    
+    // Create circular lake in the center
+    let distFromCenter = Math.sqrt(x * x + z * z)
+    if (distFromCenter < 30) {
+        return BIOMES.LAKE
     }
+    
+    // Mountains in one quadrant
+    if (x > 50 && z > 50) {
+        return BIOMES.MOUNTAINS
+    }
+    
+    // Desert in another quadrant
+    if (x < -50 && z < -50) {
+        return BIOMES.DESERT
+    }
+    
+    // Forest and plains elsewhere based on noise
+    if (biomeNoise > 0) {
+        return BIOMES.FOREST
+    } else {
+        return BIOMES.PLAINS
+    }
+}
+
+function getTerrainHeight(x, z) {
+    const biome = getBiome(x, z)
+    let baseHeight = combinedNoise(x, z)
+    
+    // Adjust height based on biome
+    switch (biome) {
+        case BIOMES.MOUNTAINS:
+            return baseHeight + ridgedNoise(x, z, 80, 25)
+        case BIOMES.PLAINS:
+            return baseHeight * 0.5
+        case BIOMES.FOREST:
+            return baseHeight + noise2D(x, z, 20, 2)
+        case BIOMES.DESERT:
+            return baseHeight * 0.7 + ridgedNoise(x, z, 120, 5)
+        case BIOMES.LAKE:
+            return -5 + noise2D(x, z, 10, 1)
+        default:
+            return baseHeight
+    }
+}
+
+function generateChunk(array, cx, cy, cz) {
+    var size = array.shape[0]
+    
     for (var i = 0; i < size; ++i) {
         var x = cx + i
         for (var k = 0; k < size; ++k) {
             var z = cz + k
-            var height = getHeightMap(x, z, 18, 22)
-            height += getHeightMap(x, z + 50, 9, 6) / 2
+            
+            // Get terrain height and biome
+            var height = getTerrainHeight(x, z)
+            var biome = getBiome(x, z)
+            
             for (var j = 0; j < size; ++j) {
-                var b = decideBlock(x, cy + j, z, height)
-                if (b) array.set(i, j, k, b)
+                var y = cy + j
+                var blockID = getBlockID(x, y, z, height, biome)
+                if (blockID) array.set(i, j, k, blockID)
             }
-            var cloudHt = getCloudHt(x, z, 20, 30)
-            if (cloudHt > 0) {
-                var cmin = cloudHt - 2 * Math.sin(x / 17)
-                var cmax = cloudHt + 3 * Math.sin(z / 22)
-                for (j = 0; j < size; ++j) {
-                    if (cy + j < cmin || cy + j > cmax) continue
-                    array.set(i, j, k, blockIDs.cloud)
+            
+            // Add clouds
+            if (cy > 30 && cy < 40) {
+                var cloudNoise = noise3D(x, cy, z, 30, 1)
+                if (cloudNoise > 0.7) {
+                    array.set(i, Math.floor((cy - 30) / 2), k, blockIDs.cloud)
                 }
             }
         }
     }
 }
 
-function generateChunk2(array, x, y, z) {
-    for (var i = 0; i < array.shape[0]; ++i) {
-        for (var k = 0; k < array.shape[2]; ++k) {
-            var height = getHeightMap(x + i, z + k, 20, 40)
-            for (var j = 0; j < array.shape[1]; ++j) {
-                var b = decideBlock(x + i, y + j, z + k, height)
-                if (b === blockIDs.grass) b = blockIDs.stone
-                if (b) array.set(i, j, k, b)
-            }
+function getBlockID(x, y, z, height, biome) {
+    // Underground layers (common to all biomes)
+    if (y < height - 5) {
+        return blockIDs.stone
+    }
+    
+    if (y < height - 1) {
+        // Small chance of ore veins
+        if (Math.random() < 0.05) {
+            return blockIDs.shinyDirt
+        }
+        return blockIDs.dirt
+    }
+    
+    // Surface and above
+    if (y < height) {
+        switch (biome) {
+            case BIOMES.FOREST:
+                return blockIDs.grass
+            case BIOMES.PLAINS:
+                return blockIDs.grass
+            case BIOMES.MOUNTAINS:
+                return y > 20 ? blockIDs.stone : blockIDs.grass
+            case BIOMES.DESERT:
+                return blockIDs.shinyDirt // Using shiny dirt as sand
+            case BIOMES.LAKE:
+                return blockIDs.dirt
+            default:
+                return blockIDs.grass
         }
     }
-}
-
-
-
-
-
-// helpers
-
-// worldgen - return a heightmap for a given [x,z]
-function getHeightMap(x, z, xsize, zsize) {
-    var xs = 1.7 * Math.sin(x / xsize)
-    var zs = 2.2 * Math.sin(z / zsize)
-    var d = Math.sqrt(x * x + z * z)
-    return (xs + zs) * Math.min(1, d / 100)
-}
-
-function getCloudHt(x, z, xsize, zsize) {
-    var xs = 5 + 5 * Math.sin(5 + x / xsize)
-    var zs = 6 + 4 * Math.sin(8 + z / zsize - x / 35)
-    var ss = 3 + 7 * Math.sin((x + z) / 17)
-    return (xs + zs + ss > 20) ? 35 : -1
-}
-
-function decideBlock(x, y, z, height) {
-    // flat area to north-east for testing
-    if (x > 0 && z > 0) {
-        var h = 1
-        if (z == 40 || x == 40) h = 20
-        if (y >= h) return 0
-        if (y < 0) return blockIDs.stone
-        return blockIDs.green
+    
+    // Water in lakes and below sea level
+    if (y <= 0) {
+        return blockIDs.water
     }
-    // general case
-    if (y < height) {
-        return (y < -2.2) ? blockIDs.stone :
-            (y < 0) ? blockIDs.dirt : blockIDs.grass
+    
+    // Vegetation and decorations
+    if (y === Math.floor(height) + 1) {
+        switch (biome) {
+            case BIOMES.FOREST:
+                // Tall grass and flowers
+                if (Math.random() < 0.3) {
+                    return blockIDs.grassDeco
+                }
+                break
+            case BIOMES.PLAINS:
+                // Occasional tall grass
+                if (Math.random() < 0.1) {
+                    return blockIDs.grassDeco
+                }
+                break
+            case BIOMES.MOUNTAINS:
+                // Very rare vegetation on mountains
+                if (y < 15 && Math.random() < 0.05) {
+                    return blockIDs.grassDeco
+                }
+                break
+            case BIOMES.DESERT:
+                // Rare desert plants (cacti)
+                if (Math.random() < 0.02) {
+                    return blockIDs.pole
+                }
+                break
+        }
     }
-    if (y < height + 1 && y > 0) {
-        var dens = (y < 1) ? 0.05 : (y < 2) ? 0.1 : 0.2
-        if (Math.random() < dens) return blockIDs.grassDeco
-    }
-    if (y >= 0) return 0
-    return blockIDs.water
+    
+    return 0 // Air
 }
 
-
-
-// After the world is initialzed, fill in a bunch of test blocks. 
-// There's no particular significance to these, I use them to 
-// debug meshing and AO and whatnot
-
+// After the world is initialized, add structures and features
 setTimeout(function () {
     addWorldFeatures()
 }, 500)
 
 function addWorldFeatures() {
-    makeColumn(2, -6, 0, 11, blockIDs.abc2)
-    makeColumn(2, -5, 0, 13, blockIDs.transparent)
-    makeColumn(2, -4, 0, 15, blockIDs.custom1)
-    makeColumn(2, -3, 0, 17, blockIDs.custom2)
-
-    noa.setBlock(blockIDs.stoneTrans, 12, 1, 6)
-    noa.setBlock(blockIDs.window, 14, 1, 6)
-
-    makeColumn(2, 14, 1, 10, blockIDs.shinyDirt)
-
-    noa.setBlock(blockIDs.waterPole, -18, -1, 15)
-    noa.setBlock(blockIDs.waterPole, -16, -1, 15)
-    noa.setBlock(blockIDs.waterPole, -14, -1, 15)
-
-    makeCross(20, 5, 1, 7, 1, blockIDs.pole)
-    makeCross(20, 5, 1, 10, 1, blockIDs.pole)
-    makeCross(20, 5, 1, 12, 1, blockIDs.pole)
-
-    makeCross(10, 39, 3, 12, 0, blockIDs.pole)
-    makeCross(10, 41, 3, 12, 0, blockIDs.pole)
-    makeCross(10, 12, 3, 39, 2, blockIDs.pole)
-    makeCross(10, 12, 3, 41, 2, blockIDs.pole)
+    // Add trees in forest biome
+    for (let i = 0; i < 100; i++) {
+        // Random positions in the forest biome area
+        const x = Math.floor(Math.random() * 100) - 50
+        const z = Math.floor(Math.random() * 100) - 50
+        
+        if (getBiome(x, z) === BIOMES.FOREST) {
+            const y = Math.floor(getTerrainHeight(x, z))
+            if (y > 0) {
+                createTree(x, y, z)
+            }
+        }
+    }
+    
+    // Add some large boulders in mountains
+    for (let i = 0; i < 20; i++) {
+        const x = 50 + Math.floor(Math.random() * 50)
+        const z = 50 + Math.floor(Math.random() * 50)
+        
+        if (getBiome(x, z) === BIOMES.MOUNTAINS) {
+            const y = Math.floor(getTerrainHeight(x, z))
+            createBoulder(x, y, z)
+        }
+    }
+    
+    // Add some desert structures
+    for (let i = 0; i < 5; i++) {
+        const x = -50 - Math.floor(Math.random() * 50)
+        const z = -50 - Math.floor(Math.random() * 50)
+        
+        if (getBiome(x, z) === BIOMES.DESERT) {
+            const y = Math.floor(getTerrainHeight(x, z))
+            createDesertStructure(x, y, z)
+        }
+    }
+    
+    // Add a small village near spawn
+    createVillage(-20, Math.floor(getTerrainHeight(-20, 10)), 10)
 }
 
-function makeColumn(ht, x, y, z, block) {
-    for (var i = 0; i < ht; i++) {
-        noa.setBlock(block, x, y + i, z)
+function createTree(x, y, z) {
+    // Create tree trunk
+    const trunkHeight = 4 + Math.floor(Math.random() * 3) // 4-6 blocks tall
+    for (let i = 0; i < trunkHeight; i++) {
+        noa.setBlock(blockIDs.pole, x, y + i, z)
+    }
+    
+    // Create tree leaves
+    const leafRadius = 2
+    const leafHeight = 3
+    const leafStartY = trunkHeight - 2
+    
+    for (let ly = 0; ly < leafHeight; ly++) {
+        const r = ly === 0 ? leafRadius : ly === leafHeight - 1 ? 1 : leafRadius
+        for (let lx = -r; lx <= r; lx++) {
+            for (let lz = -r; lz <= r; lz++) {
+                // Skip corners for a more natural rounded shape
+                if (Math.abs(lx) === r && Math.abs(lz) === r) continue
+                
+                // Add leaves
+                noa.setBlock(blockIDs.grassDeco, x + lx, y + leafStartY + ly, z + lz)
+            }
+        }
     }
 }
 
-function makeCross(length, x, y, z, axis, block) {
-    for (var i = 0; i < length; i++) {
-        var px = (axis === 0) ? x : x + i
-        var py = (axis === 1) ? y : y + i
-        var pz = (axis === 2) ? z : z + i
-        noa.setBlock(block, px, py, pz)
-        if (axis === 0) py = y + length - i
-        if (axis === 1) px = x + length - i
-        if (axis === 2) px = x + length - i
-        noa.setBlock(block, px, py, pz)
+function createBoulder(x, y, z) {
+    const size = 2 + Math.floor(Math.random() * 3) // 2-4 blocks
+    
+    for (let bx = -size; bx <= size; bx++) {
+        for (let by = -size; by <= size; by++) {
+            for (let bz = -size; bz <= size; bz++) {
+                // Create a roughly spherical shape
+                const dist = Math.sqrt(bx * bx + by * by + bz * bz)
+                if (dist <= size) {
+                    noa.setBlock(blockIDs.stone, x + bx, y + by, z + bz)
+                }
+            }
+        }
+    }
+}
+
+function createDesertStructure(x, y, z) {
+    // Create a small pyramid
+    const size = 5
+    
+    for (let level = 0; level < size; level++) {
+        for (let px = -size + level; px <= size - level; px++) {
+            for (let pz = -size + level; pz <= size - level; pz++) {
+                noa.setBlock(blockIDs.shinyDirt, x + px, y + level, z + pz)
+            }
+        }
+    }
+    
+    // Add some decorative elements
+    noa.setBlock(blockIDs.stoneTrans, x, y + size, z)
+    noa.setBlock(blockIDs.window, x + 1, y + 1, z)
+    noa.setBlock(blockIDs.window, x - 1, y + 1, z)
+}
+
+function createVillage(x, y, z) {
+    // Create a few small houses
+    createHouse(x, y, z, 5, 4, 6)
+    createHouse(x + 10, y, z - 5, 6, 4, 5)
+    createHouse(x - 8, y, z + 8, 4, 4, 4)
+    
+    // Create a central well
+    createWell(x + 5, y, z + 5)
+    
+    // Add some paths connecting buildings
+    createPath(x + 3, y, z + 3, x + 5, y, z + 5)
+    createPath(x + 5, y, z + 5, x + 10, y, z - 5)
+    createPath(x + 5, y, z + 5, x - 8, y, z + 8)
+}
+
+function createHouse(x, y, z, width, height, depth) {
+    // Create the floor
+    for (let px = 0; px < width; px++) {
+        for (let pz = 0; pz < depth; pz++) {
+            noa.setBlock(blockIDs.stone, x + px, y, z + pz)
+        }
+    }
+    
+    // Create walls
+    for (let py = 1; py < height; py++) {
+        for (let px = 0; px < width; px++) {
+            noa.setBlock(blockIDs.pole, x + px, y + py, z)
+            noa.setBlock(blockIDs.pole, x + px, y + py, z + depth - 1)
+        }
+        
+        for (let pz = 1; pz < depth - 1; pz++) {
+            noa.setBlock(blockIDs.pole, x, y + py, z + pz)
+            noa.setBlock(blockIDs.pole, x + width - 1, y + py, z + pz)
+        }
+    }
+    
+    // Add a door
+    noa.setBlock(0, x + Math.floor(width / 2), y + 1, z)
+    noa.setBlock(0, x + Math.floor(width / 2), y + 2, z)
+    
+    // Add windows
+    noa.setBlock(blockIDs.window, x + 1, y + 2, z)
+    noa.setBlock(blockIDs.window, x + width - 2, y + 2, z)
+    noa.setBlock(blockIDs.window, x + 1, y + 2, z + depth - 1)
+    noa.setBlock(blockIDs.window, x + width - 2, y + 2, z + depth - 1)
+    
+    // Create a roof
+    for (let px = -1; px < width + 1; px++) {
+        for (let pz = -1; pz < depth + 1; pz++) {
+            noa.setBlock(blockIDs.shinyDirt, x + px, y + height, z + pz)
+        }
+    }
+}
+
+function createWell(x, y, z) {
+    // Create the well structure
+    for (let px = -1; px <= 1; px++) {
+        for (let pz = -1; pz <= 1; pz++) {
+            if (px === 0 && pz === 0) continue // Center is empty
+            noa.setBlock(blockIDs.stone, x + px, y, z + pz)
+            noa.setBlock(blockIDs.stone, x + px, y + 1, z + pz)
+        }
+    }
+    
+    // Add water in the center
+    noa.setBlock(blockIDs.water, x, y, z)
+    
+    // Add a roof structure
+    noa.setBlock(blockIDs.pole, x - 1, y + 2, z - 1)
+    noa.setBlock(blockIDs.pole, x + 1, y + 2, z - 1)
+    noa.setBlock(blockIDs.pole, x - 1, y + 2, z + 1)
+    noa.setBlock(blockIDs.pole, x + 1, y + 2, z + 1)
+    
+    for (let px = -1; px <= 1; px++) {
+        for (let pz = -1; pz <= 1; pz++) {
+            noa.setBlock(blockIDs.shinyDirt, x + px, y + 3, z + pz)
+        }
+    }
+}
+
+function createPath(x1, y1, z1, x2, y2, z2) {
+    // Create a simple path between two points
+    const dx = x2 - x1
+    const dz = z2 - z1
+    const steps = Math.max(Math.abs(dx), Math.abs(dz))
+    
+    for (let i = 0; i <= steps; i++) {
+        const t = steps === 0 ? 0 : i / steps
+        const x = Math.round(x1 + dx * t)
+        const z = Math.round(z1 + dz * t)
+        noa.setBlock(blockIDs.stone, x, y1, z)
     }
 }
 

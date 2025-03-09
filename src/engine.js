@@ -1,4 +1,3 @@
-
 /**
  * 
  *      Instantiate the core noa engine object
@@ -18,7 +17,7 @@ export var noa = new Engine({
     chunkSize: 32,
     chunkAddDistance: [3, 2],     // [horiz, vert]
     blockTestDistance: 50,
-    playerStart: [0.5, 5, 0.5],
+    playerStart: [60, 22, 80],     // Start near the village in the forest biome
     playerHeight: 1.4,
     playerWidth: 0.6,
     playerAutoStep: true,

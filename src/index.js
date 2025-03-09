@@ -1,4 +1,3 @@
-
 /* 
  *
  *
@@ -18,4 +17,7 @@ import './entities'
 
 // does stuff on button presses
 import './actions'
+
+// add inventory system
+import './inventory'
 
