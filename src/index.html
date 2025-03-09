@@ -1,55 +1,52 @@
-<!DOCTYPE HTML>
+<!DOCTYPE html>
 <html lang="en">
+  <head>
+    <title>Minecraft online game</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <style type="text/css">
+      body {
+        background-color: white;
+        margin: 0px;
+        overflow: hidden;
+      }
 
-<head>
-  <title>noa-examples: testbed</title>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width">
-  <style type="text/css">
-    body {
-      background-color: white;
-      margin: 0px;
-      overflow: hidden;
-    }
+      #reticle {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        width: 20px;
+        height: 20px;
+        line-height: 20px;
+        margin: -10px 0 0 -10px;
+        z-index: 99;
+        color: #eee;
+        text-shadow: 1px 1px 0px black;
+        text-align: center;
+      }
 
-    #reticle {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      width: 20px;
-      height: 20px;
-      line-height: 20px;
-      margin: -10px 0 0 -10px;
-      z-index: 99;
-      color: #eee;
-      text-shadow: 1px 1px 0px black;
-      text-align: center;
-    }
+      #usage {
+        position: relative;
+        z-index: 100;
+        color: #eee;
+        font-family: sans-serif;
+        text-shadow: 1px 1px 0px black;
+        background-color: #0005;
+        margin: 5px;
+        padding: 5px;
+        width: fit-content;
+      }
+    </style>
+  </head>
 
-    #usage {
-      position: relative;
-      z-index: 100;
-      color: #eee;
-      font-family: sans-serif;
-      text-shadow: 1px 1px 0px black;
-      background-color: #0005;
-      margin: 5px;
-      padding: 5px;
-      width: fit-content;
-    }
-  </style>
-</head>
-
-<body>
-  <div id="reticle">+</div>
-  <div id="usage">
-    WASD to move
-    <br>Space to jump
-    <br>Left click to break blocks
-    <br>Right click to place blocks
-    <br> 1-9: select inventory slot
-  </div>
-  <script type="module" src="./index.js"></script>
-</body>
-
+  <body>
+    <div id="reticle">+</div>
+    <div id="usage">
+      WASD to move
+      <br />Space to jump <br />Left click to break blocks <br />Right click to
+      place blocks <br />
+      1-9: select inventory slot
+    </div>
+    <script type="module" src="./index.js"></script>
+  </body>
 </html>
