@@ -8,7 +8,7 @@ import { setMeshShadows } from './shadows'
 
 /*
  * 
- *      Create a 2D Steve (Minecraft) character
+ *      Create a 2D Steve (Minecraft) character with transparent background
  * 
 */
 
@@ -37,9 +37,9 @@ const SIZE = 256
 const canvasFront = document.createElement('canvas')
 canvasFront.width = SIZE
 canvasFront.height = SIZE
-const ctxFront = canvasFront.getContext('2d')
+const ctxFront = canvasFront.getContext('2d', { willReadFrequently: true })
 
-// Fill with transparent background
+// Clear the entire canvas first
 ctxFront.clearRect(0, 0, SIZE, SIZE)
 
 // Draw Steve (front view)
@@ -92,9 +92,9 @@ ctxFront.fillRect(SIZE * 0.55, SIZE * 0.95, SIZE * 0.15, SIZE * 0.05)
 const canvasBack = document.createElement('canvas')
 canvasBack.width = SIZE
 canvasBack.height = SIZE
-const ctxBack = canvasBack.getContext('2d')
+const ctxBack = canvasBack.getContext('2d', { willReadFrequently: true })
 
-// Fill with transparent background
+// Clear the entire canvas first
 ctxBack.clearRect(0, 0, SIZE, SIZE)
 
 // Draw Steve (back view)
@@ -131,16 +131,32 @@ ctxBack.fillRect(SIZE * 0.3, SIZE * 0.95, SIZE * 0.15, SIZE * 0.05)
 ctxBack.fillRect(SIZE * 0.55, SIZE * 0.95, SIZE * 0.15, SIZE * 0.05)
 
 // Create textures from canvases
-const textureFront = new Texture(canvasFront.toDataURL(), scene)
-const textureBack = new Texture(canvasBack.toDataURL(), scene)
+const textureFront = new Texture(canvasFront.toDataURL("image/png"), scene, true, true)
+const textureBack = new Texture(canvasBack.toDataURL("image/png"), scene, true, true)
 
 // Apply textures to materials
 frontMaterial.diffuseTexture = textureFront
 backMaterial.diffuseTexture = textureBack
 
+// Enable alpha for transparent background
+frontMaterial.diffuseTexture.hasAlpha = true
+backMaterial.diffuseTexture.hasAlpha = true
+frontMaterial.useAlphaFromDiffuseTexture = true
+backMaterial.useAlphaFromDiffuseTexture = true
+frontMaterial.backFaceCulling = false
+backMaterial.backFaceCulling = false
+
+// Set proper alpha mode for transparency
+frontMaterial.transparencyMode = 1 // BABYLON.Material.MATERIAL_ALPHABLEND
+backMaterial.transparencyMode = 1 // BABYLON.Material.MATERIAL_ALPHABLEND
+
+// Additional transparency settings
+frontMaterial.alpha = 1.0
+backMaterial.alpha = 1.0
+
 // Make materials emissive to ensure visibility in all lighting conditions
-frontMaterial.emissiveColor = new Color3(0.5, 0.5, 0.5)
-backMaterial.emissiveColor = new Color3(0.5, 0.5, 0.5)
+frontMaterial.emissiveColor = new Color3(1.0, 1.0, 1.0)
+backMaterial.emissiveColor = new Color3(1.0, 1.0, 1.0)
 
 // Remove specular reflection
 frontMaterial.specularColor = new Color3(0, 0, 0)
