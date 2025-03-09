@@ -1,12 +1,27 @@
 import { noa } from './engine'
 import { blockIDs } from './registration'
 
+// Import texture URLs
+import atlasURL from './textures/terrain_atlas.png'
+import stoneURL from './textures/stone.png'
+import transparentAtlas from './textures/trans_atlas.png'
+import grassDecoURL from './textures/grass_deco.png'
+import transparent1 from './textures/t1.png'
+import transparent2 from './textures/t2.png'
+import windowURL from './textures/window.png'
+import imagea from './textures/a.png'
+import imageb from './textures/b.png'
+import imagec from './textures/c.png'
+
 // Inventory system for the game
 export class Inventory {
     constructor() {
         this.slots = [];
         this.selectedSlot = 0;
         this.maxSlots = 9;
+        
+        // Create texture mapping for blocks
+        this.blockTextures = this.createBlockTextureMapping();
         
         // Initialize inventory with some default blocks
         this.initializeInventory();
@@ -19,6 +34,39 @@ export class Inventory {
         
         // Update UI initially
         this.updateUI();
+    }
+    
+    createBlockTextureMapping() {
+        // Map block IDs to their textures
+        const mapping = {};
+        
+        // Simple textures
+        mapping[blockIDs.stone] = { url: stoneURL, type: 'image' };
+        mapping[blockIDs.dirt] = { url: atlasURL, type: 'atlas', index: 2 };
+        mapping[blockIDs.grass] = { url: atlasURL, type: 'atlas', index: 0 };
+        mapping[blockIDs.transparent] = { url: transparent1, type: 'image' };
+        mapping[blockIDs.window] = { url: windowURL, type: 'image' };
+        mapping[blockIDs.grassDeco] = { url: grassDecoURL, type: 'image' };
+        mapping[blockIDs.stoneTrans] = { url: transparentAtlas, type: 'atlas', index: 0 };
+        
+        // Colored blocks
+        mapping[blockIDs.green] = { color: '#336633', type: 'color' };
+        mapping[blockIDs.cloud] = { color: 'rgba(230, 230, 235, 0.8)', type: 'color' };
+        mapping[blockIDs.water] = { color: 'rgba(128, 128, 204, 0.7)', type: 'color' };
+        mapping[blockIDs.shinyDirt] = { color: '#735a38', type: 'color' };
+        
+        // Custom blocks
+        mapping[blockIDs.pole] = { color: '#b3b3b3', type: 'color' };
+        mapping[blockIDs.waterPole] = { color: 'rgba(128, 128, 204, 0.7)', type: 'color' };
+        mapping[blockIDs.custom1] = { url: transparent1, type: 'image' };
+        mapping[blockIDs.custom2] = { url: transparent2, type: 'image' };
+        
+        // Multi-textured blocks
+        mapping[blockIDs.abc1] = { url: imagea, type: 'image' };
+        mapping[blockIDs.abc2] = { url: imagea, type: 'image' };
+        mapping[blockIDs.abc3] = { url: imagea, type: 'image' };
+        
+        return mapping;
     }
     
     initializeInventory() {
@@ -97,6 +145,8 @@ export class Inventory {
             slot.style.fontSize = '10px';
             slot.style.textAlign = 'center';
             slot.style.cursor = 'pointer';
+            slot.style.position = 'relative';
+            slot.style.overflow = 'hidden';
             
             // Add click event to select slot
             slot.addEventListener('click', () => {
@@ -112,6 +162,8 @@ export class Inventory {
             keyNumber.style.left = '2px';
             keyNumber.style.fontSize = '8px';
             keyNumber.style.color = '#aaa';
+            keyNumber.style.zIndex = '2';
+            keyNumber.style.textShadow = '1px 1px 0px black';
             
             slot.appendChild(keyNumber);
             inventoryContainer.appendChild(slot);
@@ -127,7 +179,7 @@ export class Inventory {
         slots.forEach((slot, index) => {
             // Only proceed if the slot is an HTMLElement
             if (slot instanceof HTMLElement) {
-                // Clear previous content
+                // Clear previous content except the key number
                 while (slot.childNodes.length > 1) {
                     slot.removeChild(slot.lastChild);
                 }
@@ -135,14 +187,69 @@ export class Inventory {
                 // Update slot content
                 if (index < this.slots.length) {
                     const item = this.slots[index];
+                    const textureInfo = this.blockTextures[item.id];
+                    
+                    // Add block texture/color
+                    if (textureInfo) {
+                        const blockImage = document.createElement('div');
+                        blockImage.className = 'block-image';
+                        blockImage.style.width = '30px';
+                        blockImage.style.height = '30px';
+                        blockImage.style.position = 'absolute';
+                        blockImage.style.top = '50%';
+                        blockImage.style.left = '50%';
+                        blockImage.style.transform = 'translate(-50%, -50%)';
+                        blockImage.style.zIndex = '1';
+                        
+                        if (textureInfo.type === 'color') {
+                            // Use color for blocks without textures
+                            blockImage.style.backgroundColor = textureInfo.color;
+                            blockImage.style.border = '1px solid rgba(0, 0, 0, 0.3)';
+                        } else if (textureInfo.type === 'image') {
+                            // Use direct image
+                            blockImage.style.backgroundImage = `url(${textureInfo.url})`;
+                            blockImage.style.backgroundSize = 'cover';
+                            blockImage.style.backgroundPosition = 'center';
+                            blockImage.style.imageRendering = 'pixelated';
+                        } else if (textureInfo.type === 'atlas') {
+                            // Handle atlas textures
+                            blockImage.style.backgroundImage = `url(${textureInfo.url})`;
+                            // Assuming atlas is a vertical strip with equal-sized textures
+                            const yOffset = textureInfo.index * 100;
+                            blockImage.style.backgroundPosition = `0 ${-yOffset}%`;
+                            blockImage.style.backgroundSize = '100% 400%'; // Adjust based on atlas size
+                            blockImage.style.imageRendering = 'pixelated';
+                        }
+                        
+                        slot.appendChild(blockImage);
+                    }
                     
                     // Add block name
                     const nameElement = document.createElement('div');
                     nameElement.textContent = item.name;
                     nameElement.style.fontSize = '8px';
-                    nameElement.style.marginTop = '15px';
+                    nameElement.style.marginTop = '25px';
+                    nameElement.style.position = 'relative';
+                    nameElement.style.zIndex = '2';
+                    nameElement.style.textShadow = '1px 1px 0px black';
+                    nameElement.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+                    nameElement.style.padding = '1px 3px';
+                    nameElement.style.borderRadius = '2px';
                     
                     slot.appendChild(nameElement);
+                    
+                    // Add count indicator
+                    const countElement = document.createElement('div');
+                    countElement.textContent = item.count.toString();
+                    countElement.style.position = 'absolute';
+                    countElement.style.bottom = '2px';
+                    countElement.style.right = '2px';
+                    countElement.style.fontSize = '8px';
+                    countElement.style.color = 'white';
+                    countElement.style.zIndex = '2';
+                    countElement.style.textShadow = '1px 1px 0px black';
+                    
+                    slot.appendChild(countElement);
                     
                     // Highlight selected slot
                     if (index === this.selectedSlot) {
