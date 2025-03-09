@@ -47,23 +47,6 @@ noa.inputs.down.on('mid-fire', function () {
 })
 
 
-// pause (P)
-noa.inputs.bind('pause', 'KeyP')
-noa.inputs.down.on('pause', function () {
-    paused = !paused
-    noa.setPaused(paused)
-})
-var paused = false
-
-
-
-// invert mouse (I)
-noa.inputs.bind('invert-mouse', 'KeyI')
-noa.inputs.down.on('invert-mouse', function () {
-    noa.camera.inverseY = !noa.camera.inverseY
-})
-
-
 // each tick, consume any scroll events and use them to zoom camera
 // Restored original behavior without shift key requirement
 noa.on('tick', function (dt) {
