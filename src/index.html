@@ -36,6 +36,55 @@
         padding: 5px;
         width: fit-content;
       }
+      
+      #header {
+        position: relative;
+        z-index: 100;
+        color: #eee;
+        font-family: 'Minecraft', sans-serif;
+        text-shadow: 2px 2px 0px #000;
+        background-color: rgba(0, 0, 0, 0.5);
+        padding: 10px;
+        text-align: center;
+        width: 100%;
+      }
+      
+      #header h1 {
+        margin: 0;
+        font-size: 24px;
+      }
+      
+      #social-links {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 101;
+      }
+      
+      #social-links a {
+        color: #eee;
+        text-decoration: none;
+        margin-left: 10px;
+        font-family: sans-serif;
+        font-size: 14px;
+        text-shadow: 1px 1px 0px black;
+      }
+      
+      #product-links {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 101;
+      }
+      
+      #product-links a {
+        color: #eee;
+        text-decoration: none;
+        margin-right: 10px;
+        font-family: sans-serif;
+        font-size: 14px;
+        text-shadow: 1px 1px 0px black;
+      }
     </style>
     <script
       async
@@ -53,6 +102,21 @@
   </head>
 
   <body>
+    <div id="header">
+      <h1>Minecraft Online Minecraft</h1>
+    </div>
+    
+    <div id="social-links">
+      <a href="https://x.com/tech_nurgaliyev" target="_blank">Follow on X (Twitter)</a>
+    </div>
+    
+    <div id="product-links">
+      <a href="https://bestwebsitegames.com/" target="_blank">Best Website Games</a>
+      <a href="https://mvpagency.org/" target="_blank">MVPAgency</a>
+      <a href="https://pregnantmeal.com/" target="_blank">PregnantMeal</a>
+      <a href="https://redditagency.com/" target="_blank">Reddit Agency</a>
+    </div>
+    
     <div id="reticle">+</div>
     <div id="usage">
       WASD to move
